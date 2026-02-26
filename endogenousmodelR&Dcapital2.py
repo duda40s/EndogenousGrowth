@@ -38,78 +38,99 @@ import ipywidgets
 # In[73]:
 
 
-def RD_growth_model(n, gamma, theta, beta, alpha, L0, A0, T, s, K0, a, B):
-
-    Y0 = ((A0*L0*(1 - a))**(1-alpha)) * (K0*(1 - a))**(alpha)  
-
+def RD_growth_model(n, gamma, theta, beta, alpha, L0, A0, T, s, K0, a, B, delta=0):
+    """
+    Romer-style RD growth model simulation
     
+    Parameters:
+    n     : labor growth rate
+    gamma : elasticity of R&D w.r.t R&D labor
+    theta : elasticity of R&D w.r.t technology
+    beta  : elasticity of R&D w.r.t R&D capital (optional, often 0)
+    alpha : capital share in production
+    L0    : initial labor
+    A0    : initial technology
+    T     : number of periods
+    s     : savings rate
+    K0    : initial capital
+    a     : fraction of labor in R&D
+    B     : productivity in R&D
+    delta : depreciation rate of capital (default 0)
+    """
+    
+    # Initialize paths
     Lpath = np.zeros(T + 1)
     Apath = np.zeros(T + 1)
     Ypath = np.zeros(T + 1)
-    Kpath = np.zeros(T + 1)  
-    YLpath = np.zeros(T + 1)  
-    AGpath = np.zeros(T + 1)
+    Kpath = np.zeros(T + 1)
+    YLpath = np.zeros(T + 1)
     KLpath = np.zeros(T + 1)
-
-
-   
+    AGpath = np.zeros(T + 1)
+    
+    # Set initial values
     Lpath[0] = L0
     Apath[0] = A0
-    Ypath[0] = Y0
-    Kpath[0] = K0  
-    YLpath[0] = Y0/L0
-    KLpath[0] = K0/L0
-
-
+    Kpath[0] = K0
+    Ypath[0] = ((A0 * L0 * (1 - a))**(1 - alpha)) * (K0**alpha)
+    YLpath[0] = Ypath[0] / L0
+    KLpath[0] = K0 / L0
+    
+    # Balanced growth rate of technology (analytical)
+    GA = ((beta + gamma) / (1 - (theta + beta))) * n
+    
+    # Simulation
     for t in range(T):
-        Adot = ((a * Lpath[t])**gamma) * B*((Kpath[t] * a)**beta) * Apath[t]**theta
+        # R&D growth
+        Adot = B * (a * Lpath[t])**gamma * (Kpath[t] * a)**beta * Apath[t]**theta
         Apath[t + 1] = Apath[t] + Adot
         AGpath[t] = Adot / Apath[t]
-
-        Ydot = ((Apath[t]*Lpath[t]*(1 - a))**(1-alpha)) * (Kpath[t]*(1 - a))**alpha
-        Ldot = n * Lpath[t]
-        Lpath[t+1] = Ldot + Lpath[t]
-
-        Ypath[t + 1] = Ypath[t] + Ydot
-        Kdot = s * Ypath[t]
+        
+        # Update labor
+        Lpath[t + 1] = Lpath[t] * (1 + n)
+        
+        # Update capital
+        Kdot = s * Ypath[t] - delta * Kpath[t]  # include depreciation
         Kpath[t + 1] = Kpath[t] + Kdot
-
+        
+        # Update output
+        Ypath[t + 1] = ((Apath[t + 1] * Lpath[t + 1] * (1 - a))**(1 - alpha)) * (Kpath[t + 1]**alpha)
+        
+        # Ratios
         YLpath[t + 1] = Ypath[t + 1] / Lpath[t + 1]
         KLpath[t + 1] = Kpath[t + 1] / Lpath[t + 1]
-        GA = ((beta+gamma)/(1-(theta+beta)))*n
-
-        
     
-    t = np.arange(T + 1)
-
+    # Time vector
+    t_vec = np.arange(T + 1)
+    
+    # Plots
     fig, axs = plt.subplots(1, 4, figsize=(20, 5))
-
-    axs[0].plot(t, YLpath)
+    
+    axs[0].plot(t_vec, YLpath)
     axs[0].set_xlabel('Time')
-    axs[0].set_ylabel('Output per labor (Y/L)')
+    axs[0].set_ylabel('Output per Labor (Y/L)')
     axs[0].set_title('Output per Labor over Time')
-
-    axs[1].plot(t, Apath)
+    
+    axs[1].plot(t_vec, Apath)
     axs[1].set_xlabel('Time')
-    axs[1].set_ylabel('Technology level (A)')
+    axs[1].set_ylabel('Technology Level (A)')
     axs[1].set_title('Technology Level over Time')
     
-    axs[2].plot(t, AGpath)
+    axs[2].plot(t_vec, AGpath)
     axs[2].set_xlabel('Time')
-    axs[2].set_ylabel('Growth of Technology level (A)')
-    axs[2].set_title('Growth of Technology Level over Time')
+    axs[2].set_ylabel('Growth Rate of A')
+    axs[2].set_title('Technology Growth over Time')
     
-    axs[3].plot(t, KLpath)
+    axs[3].plot(t_vec, KLpath)
     axs[3].set_xlabel('Time')
     axs[3].set_ylabel('Capital per Labor (K/L)')
     axs[3].set_title('Capital per Labor over Time')
     
-
     plt.tight_layout()
     plt.show()
     
-    print(f'g* = {GA}')
+    print(f'Analytical balanced growth rate of technology g* = {GA:.3f}')
     
+    return Lpath, Kpath, Ypath, Apath, YLpath, KLpath, AGpath
 
     
     
